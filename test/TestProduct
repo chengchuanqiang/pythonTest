@@ -1,0 +1,9 @@
+from itertools import product
+
+# 密码生成器
+x = 6
+y = 7
+iter = '1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+for repeat in range(x, y):
+    for ps in product(iter, repeat=repeat):
+        print(''.join(ps))
