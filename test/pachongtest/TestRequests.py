@@ -8,6 +8,7 @@ print(r.headers)
 print(r.encoding)
 print(r.apparent_encoding)
 print(r.content)
+print(r.content)
 
 
 def getHtmlText(url):
